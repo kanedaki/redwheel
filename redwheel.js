@@ -2,11 +2,16 @@ var RedWheel = function() {
   function Redwheel(options) {
     var model = new WheelModel(options),
         view = new WheelView({model: model, el: options.el});
-    //TouchDaemon.start({cb: view.onUserClick, el: view.root});
-    return view.render().attachHandlers();
+    view.render();
+    new TouchDaemon({cb: view.onUserClick.bind(view), el: view.root}); 
+    return view;
   }
   return Redwheel;
 }();
+
+/********************************************
+ ******** WheelModel  *************************
+ *********************************************/
 
 var WheelModel = function() {
   function WheelModel(options) {
@@ -44,6 +49,26 @@ WheelModel.prototype.publish = function(value) {
   this.observers.forEach(function(cb) {cb(value)});  
 }
 
+/********************************************
+ ******** WheelView  *************************
+ *********************************************/
+WheelEvents = {
+  whatEventIsIt: function(params) {
+    if (params.e.srcElement.className == "not-selected") {
+      if (params.event == "tap") {
+        return "element";
+      } else if (params.event == "drag") {
+        return "drag";
+      }
+    } else if (params.e.srcElement.className == "up" && params.event == "tap") {
+      return "up";
+    } else if (params.e.srcElement.className == "down" && params.event == "tap") {
+      return "down";
+    }
+  }
+}
+
+
 var WheelView = function() {
   function WheelView(options) {
     this.model = options.model;
@@ -54,22 +79,38 @@ var WheelView = function() {
   return WheelView;
 }();
 
-WheelView.prototype.attachHandlers = function() {
-  function move(options, event) {
+WheelView.prototype.onUserClick = function(params) {
+  function move(options) {
     if (options.direction == "up") {
       this.model.setPrevious();
     } else if (options.direction == "down") {
       this.model.setNext();  
     } else {
-      this.model.setSelected($(event.currentTarget).text());
+      this.model.setSelected(options.event.srcElement.textContent);
     } 
   }
 
-  this.$root.find(".up").on('click', move.bind(this, {direction: "up"})); 
-  this.$root.find(".down").on('click', move.bind(this, {direction: "down"})); 
-  this.$root.delegate('.not-selected', 'click', move.bind(this, {}));
+  switch(WheelEvents.whatEventIsIt(params)) {
+    case "element":
+      console.log("element")
+      move.call(this, {event: params.e});
+      break;
+    case "up":
+      console.log("up")
+      move.call(this, {direction: "up"})
+      break;
+    case "down":
+      console.log("dow")
+      move.call(this, {direction: "down"})
+      break;
+    case "drag":
+      console.log("drag", params)
+      break;
+    default: 
+      console.log("other", params, params.e.srcElement)
+      break;
+  }
 }
-
 
 WheelView.prototype.render = function() {
   function setLists(view) {
